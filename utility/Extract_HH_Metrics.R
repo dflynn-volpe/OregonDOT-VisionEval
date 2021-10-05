@@ -12,7 +12,7 @@ library(stringr) # install.packages(stringr)
 # User Input ----
 # Input the name of the completed VERSPM model
 
-modelName <- 'VERSPM'  # could be RefCase or similar
+modelName <- 'RefCase' # 'VERSPM'  # could be RefCase or similar
 
 metric_level <- 'Bzone' # Options are Bzone or Household. If Household, will report out metrics for each Household (large files).
 
@@ -125,16 +125,17 @@ if(metric_level == 'Bzone'){
 
 
 
-bzone_geo_file <- 'bzone_summary_RVMPO.csv' # Replace with bzone_summary_Portland.csv or similar
+bzone_geo_file <- 'bzone_summary_Portland.csv' # Replace with bzone_summary_Portland.csv or similar
 
 if(!file.exists(bzone_geo_file)){
   stop(paste(bzone_geo_file, 'not found in the directory', path.expand(getwd()), '\n Please place the Bzone geography file in this directory.'))
 }
 
-bzone_geo <- read.csv(bzone_geo_file)
+bzone_geo <- read.csv(bzone_geo_file, fileEncoding="UTF-8-BOM")
 
+class(bzone_geo$Bzone) = 'character'
 # Make sure this geo file has the same Bzones as in our model
-stopifnot(all(bzone_geo$Bzone %in% Bz_compiled$Bzone) & all(Bz_compiled$Bzone %in% bzone_geo$Bzone))
+stopifnot(all(Bz_compiled$Bzone %in% bzone_geo$Bzone))
 
 Bz_compiled <- Bz_compiled %>% left_join(bzone_geo)
 
