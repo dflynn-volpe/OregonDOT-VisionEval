@@ -19,7 +19,7 @@ metric_level <- 'Bzone' # Options are Bzone or Household. If Household, will rep
 # Extract ----
 # Define a function to extract metrics from each model folder
 
-extract_scenario_metrics <- function(modelName){
+extract_scenario_metrics <- function(modelName, tables = 'Household', fields = c('Bzone', 'Dvmt','DailyCO2e', 'HhSize')){
   # Will return an error if the model doesn't exist yet
   mod <- openModel(modelName) 
   
@@ -28,10 +28,8 @@ extract_scenario_metrics <- function(modelName){
   mod$tables <- ''
   mod$fields <- ''
   
-  mod$tables <- 'Household'
-  mod$fields <- c('Bzone',
-                  'Dvmt',
-                  'DailyCO2e'
+  mod$tables <- tables
+  mod$fields <- fields
                   
                   # Other options include:
                   # 'Income',
@@ -42,7 +40,6 @@ extract_scenario_metrics <- function(modelName){
                   # 'TransitTrips',
                   # 'DailyKWH',
                   # Daily GGE
-                  )
   
   cat('Extracting \t', mod$groupsSelected, '\t',
       mod$tablesSelected, '\n', 
@@ -56,6 +53,7 @@ extract_scenario_metrics <- function(modelName){
 
 
 results <- extract_scenario_metrics(modelName)
+
 
 # This looks for a four-digit number in the names of the results tables, e.g. _2010_, and returns just the year 2010
 years_run = str_match(names(results), '(?:_)(\\d{4})(?:_)')[,2]
@@ -139,31 +137,56 @@ stopifnot(all(Bz_compiled$Bzone %in% bzone_geo$Bzone))
 
 Bz_compiled <- Bz_compiled %>% left_join(bzone_geo)
 
+# Add population for each year as well
+
 COP_measures <- Bz_compiled %>%
   filter(COP == 1) %>%
   group_by(Year) %>%
   summarize(HHCO2_COP = sum(DailyCO2e),
-            HHVMT_COP = sum(Dvmt)) 
+            HHVMT_COP = sum(Dvmt),
+            Pop_COP = sum(HhSize)) 
 
 Urban_measures <- Bz_compiled %>%
   filter(Urban == 1) %>%
   group_by(Year) %>%
   summarize(HHCO2_Urban = sum(DailyCO2e),
-            HHVMT_Urban = sum(Dvmt))
+            HHVMT_Urban = sum(Dvmt),
+            Pop_Urban = sum(HhSize))
 
 Region_measures <- Bz_compiled %>%
   filter(Region == 1) %>%
   group_by(Year) %>%
   summarize(HHCO2_Region = sum(DailyCO2e),
-            HHVMT_Region = sum(Dvmt))
+            HHVMT_Region = sum(Dvmt),
+            Pop_Region = sum(HhSize))
+
+MetroB_measures <- Bz_compiled %>%
+  filter(MetroB == 1) %>%
+  group_by(Year) %>%
+  summarize(HHCO2_MetroB = sum(DailyCO2e),
+            HHVMT_MetroB = sum(Dvmt),
+            Pop_MetroB = sum(HhSize))
+
+MPOnp_measures <- Bz_compiled %>%
+  filter(MPOnp == 1) %>%
+  group_by(Year) %>%
+  summarize(HHCO2_MPOnp = sum(DailyCO2e),
+            HHVMT_MPOnp = sum(Dvmt),
+            Pop_MPOnp = sum(HhSize))
+
 
 # Join together and organize 
 overall <- left_join(COP_measures, Urban_measures)
 overall <- left_join(overall, Region_measures) 
+overall <- left_join(overall, MetroB_measures) 
+overall <- left_join(overall, MPOnp_measures) 
+
 
 overall <- tibble::column_to_rownames(overall, var = 'Year')
 overall <- tibble::rownames_to_column(as.data.frame(t(overall)), var = 'Measure')
 overall <- overall %>% arrange(Measure)
+
+# Add the population 
 
 write.csv(overall,
           file.path(output_path, 'Bzone_Metrics_Geo_Summary.csv'),
